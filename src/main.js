@@ -2,6 +2,7 @@ import express from 'express';
 import fs from 'node:fs';
 
 import paths from './paths.js';
+import proxy from './routes/proxy.js';
 
 let script = await fetch(`https://raw.githubusercontent.com/TheLazySquid/GimkitCheat/main/build/bundle.js`);
 fs.writeFileSync(import.meta.dirname + '/bundle.txt', await script.text());
@@ -9,11 +10,15 @@ fs.writeFileSync(import.meta.dirname + '/bundle.txt', await script.text());
 const app = express();
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: false, limit: '64kb' }));
+app.use(express.raw({ type: 'multipart/form-data', limit: '10mb' }));
 app.use(express.static(import.meta.dirname + '/app', { etag: false, lastModified: false }));
 app.disable('etag');
 
 app.all(`/*`, async (req, res) => {
     let path = req.url.split('?')[0];
+
+    if (path === '/proxy') return proxy(req, res);
 
     let file = paths.find((pathData) => typeof pathData.match === 'string' ? path === pathData.match : pathData.match.test(path));
     if (!file) return console.log(`Unknown file for path "${path}"`);
